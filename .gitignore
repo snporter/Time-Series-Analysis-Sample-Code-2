@@ -1,33 +1,125 @@
-# History files
-.Rhistory
-.Rapp.history
+X1 <- read.csv("http://gozips.uakron.edu/~nmimoto/689/TS-hw4_data01.csv")
+X <- ts(X1[,2], start=796) #- extract only second column as time series
+plot(X,type="o")
 
-# Session Data files
-.RData
+Randomness.tests <- function( A, plott=TRUE) {
+  
+  library(tseries) 
+  
+  L1 <- Box.test(A,   lag = 15, type = "Ljung-Box")
+  L2 <- Box.test(A,   lag = 20, type = "Ljung-Box")
+  L3 <- Box.test(A,   lag = 25, type = "Ljung-Box")
+  L4 <- Box.test(A^2, lag = 15, type = "Ljung-Box")
+  L5 <- Box.test(A^2, lag = 20, type = "Ljung-Box")
+  L7 <- jarque.bera.test(A)
+  S1 <- sd(A)
+  
+  if (plott) {
+    layout( matrix(c(rep(1,8),2,3,4,8,5,6,7,8), 4, 4, byrow=T) )
+    plot(A, type='l')
+    acf(A)
+    pacf(A)
+    plot(density(A, bw="SJ-ste"), main= "")
+    acf(abs(A))
+    acf(A^2)
+    qqnorm(A)
+    
+    plot(c(-1,-1), xlim=c(0,1), ylim=c(0,1), ann=F, axes=F)
+    
+    text( 0.5,0.95, paste("Box-Ljung test"), cex=1.3 )
+    text( 0.5,0.9,  paste("H=15:p= ", round(L1$p.value, 4)), cex=1 )
+    text( 0.5,0.85, paste("H=20:p= ", round(L2$p.value, 4)), cex=1 )
+    text( 0.5,0.8,  paste("H=25:p= ", round(L3$p.value, 4)), cex=1 )
+    text( 0.5,0.7,  paste("McLeod-Li test") , cex=1.3 )
+    text( 0.5,0.65, paste("H=15:p= ", round(L4$p.value, 4)), cex=1 )
+    text( 0.5,0.6,  paste("H=20:p= ", round(L5$p.value, 4)), cex=1 )
+    text( 0.5,0.35, paste("Jaque-Bera test") , cex=1.3 )
+    names(L7$p.value) <- ""
+    text( 0.5,0.3,  paste("p= ", round(L7$p.value, 4)), cex=1 )
+    text( 0.5,0.2,  paste("sample SD ", round(S1, 4)), cex=1 )
+    
+    layout( matrix(1, 1, 1) )
+  }
+  
+  return( t(t(c("BL15"=round(L1$p.value, 3), "BL20"=round(L2$p.value,3),
+                "BL25"=round(L3$p.value,3), "ML15"=round(L4$p.value,3),
+                "ML20"=round(L5$p.value,3), "JB"=round(L7$p.value,3), 
+                "SD" = round(S1, 3) ))))
+  
+}
 
-# Example code in package build process
-*-Ex.R
+Randomness.tests(Fit1$residuals)
 
-# Output files from R CMD build
-/*.tar.gz
 
-# Output files from R CMD check
-/*.Rcheck/
 
-# RStudio files
-.Rproj.user/
+#-----
+Stationarity.tests <- function( A ) {
+  
+  
+  library(tseries) 
+  
+  L1 <- adf.test(A)
+  L2 <- pp.test(A)
+  L3 <- kpss.test(A)
+  
+  return( t(t(c("KPSS"=round(L3$p.value,3),
+                "ADF"=round(L1$p.value, 3),
+                "PP"=round(L2$p.value,3)))))
+  
+  
+}
 
-# produced vignettes
-vignettes/*.html
-vignettes/*.pdf
+library(forecast)
 
-# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
-.httr-oauth
+plot(X, type="o")
+layout(matrix(c(1,2), 1, 2)
+acf(X); pacf(X); layout(1)
 
-# knitr and R markdown default cache directories
-/*_cache/
-/cache/
+Fit1 <- auto.arima(X)
+plot(Fit1$residuals)
+layout(matrix(c(1,2), 1, 2))
+acf(Fit1$residuals); pacf(Fit1$residuals); layout(1)
+       Randomness.tests(Fit1$residuals)
+Fit1
 
-# Temporary files created by R markdown
-*.utf8.md
-*.knit.md
+str(Fit1)
+
+Fit1$coef         #- phi1.hat, theta1.hat, mu.hat
+
+Fit1$var.coef     #- covariance matrix of above estimators
+
+c(Fit1$var.coef[1,1], Fit1$var.coef[2,2], Fit1$var.coef[3,3])  #- extracting the diagnal term
+
+n=1000 
+
+MLE  <- matrix(0,1000,5)  
+Vars <- matrix(0,1000,5)  
+
+for (i in 1:1000) {
+  
+  print(i)
+  
+  mu <- 130.0466
+  E  <- arima.sim(n = n, list(ar = c(1.5, -.8), ma = c(-1.3, .7))  ) + mu
+  Est <- arima(X, order=c(2,0,2))
+  
+  MLE[i,]  <- Est$coef
+  Vars[i,] <- diag(Est$var.coef)
+  
+}
+
+layout(matrix(1:6, 2,3)); 
+hist(MLE[,1]);  hist(MLE[,2]);  hist(MLE[,3])
+hist(MLE[,4]);  hist(MLE[,5]);  hist(MLE[,6])
+
+c( mean(MLE[,1]), sd(MLE[,1]), sqrt(mean(Vars[,1])) )
+c( mean(MLE[,2]), sd(MLE[,2]), sqrt(mean(Vars[,2])) )
+c( mean(MLE[,3]), sd(MLE[,3]), sqrt(mean(Vars[,3])) )
+c( mean(MLE[,4]), sd(MLE[,4]), sqrt(mean(Vars[,4])) )
+c( mean(MLE[,5]), sd(MLE[,5]), sqrt(mean(Vars[,5])) )
+c( mean(MLE[,6]), sd(MLE[,6]), sqrt(mean(Vars[,6])) )
+c( mean(MLE[,7]), sd(MLE[,7]), sqrt(mean(Vars[,7])))
+
+X.h <- predict(Fit1, n.ahead=10)
+ts.plot(cbind(X,X.h$pred, X.h$pred+X.h$se, X.h$pred-X.h$se),
+        type="o", col=c("black","red","blue","blue"))
